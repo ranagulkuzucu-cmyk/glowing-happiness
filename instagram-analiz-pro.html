@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Instagram Takip Analizi</title>
+
+  <!-- ZIP dosyasını tarayıcıda okumak için JSZip -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 30px 18px;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: 34px;
+    }
+
+    p {
+      color: #94a3b8;
+      line-height: 1.6;
+    }
+
+    .card {
+      background: #111827;
+      border: 1px solid #334155;
+      border-radius: 18px;
+      padding: 22px;
+      margin-top: 22px;
+    }
+
+    .upload-box {
+      border: 2px dashed #475569;
+      border-radius: 18px;
+      padding: 30px;
+      text-align: center;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .button {
+      display: inline-block;
+      background: #7c3aed;
+      color: white;
+      padding: 13px 20px;
+      border-radius: 12px;
+      cursor: pointer;
+      border: none;
+      font-weight: bold;
+      text-decoration: none;
+    }
+
+    .button:hover {
+      background: #6d28d9;
+    }
+
+    .secondary {
+      background: #334155;
+    }
+
+    .secondary:hover {
+      background: #475569;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .stat {
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 28px;
+      color: white;
+    }
+
+    .stat span {
+      color: #94a3b8;
+      font-size: 14px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+      margin-bottom: 16px;
+    }
+
+    .search {
+      flex: 1;
+      min-width: 220px;
+      padding: 13px;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      background: #020617;
+      color: white;
+    }
+
+    .list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 10px;
+    }
+
+    .person {
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .person a {
+      color: #f8fafc;
+      text-decoration: none;
+      font-weight: bold;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .person a:hover {
+      color: #c4b5fd;
+      text-decoration: underline;
+    }
+
+    .badge {
+      font-size: 12px;
+      color: #c4b5fd;
+      background: rgba(124, 58, 237, 0.2);
+      padding: 5px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .error {
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.45);
+      color: #fecdd3;
+      padding: 14px;
+      border-radius: 12px;
+      margin-top: 14px;
+    }
+
+    .success {
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.45);
+      color: #bbf7d0;
+      padding: 14px;
+      border-radius: 12px;
+      margin-top: 14px;
+    }
+
+    footer {
+      margin-top: 28px;
+      color: #64748b;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Instagram Takip Analizi</h1>
+    <p>
+      Instagram’dan indirdiğin <b>.zip</b> dosyasını seç. Bu uygulama takip ettiklerin ile takipçilerini karşılaştırır
+      ve <b>senin takip ettiğin ama seni takip etmeyen</b> hesapları listeler.
+    </p>
+
+    <section class="card">
+      <div class="upload-box">
+        <p><b>Instagram veri ZIP dosyanı seç</b></p>
+        <label class="button">
+          ZIP Dosyası Seç
+          <input id="zipInput" type="file" accept=".zip,application/zip" />
+        </label>
+        <p>Veriler hiçbir yere yüklenmez. İşlem tamamen tarayıcıda yapılır.</p>
+      </div>
+      <div id="message"></div>
+    </section>
+
+    <section id="resultSection" class="hidden">
+      <div class="stats">
+        <div class="stat">
+          <strong id="followersCount">0</strong>
+          <span>Takipçi</span>
+        </div>
+        <div class="stat">
+          <strong id="followingCount">0</strong>
+          <span>Takip edilen</span>
+        </div>
+        <div class="stat">
+          <strong id="notFollowingBackCount">0</strong>
+          <span>Seni takip etmeyen</span>
+        </div>
+        <div class="stat">
+          <strong id="mutualCount">0</strong>
+          <span>Karşılıklı</span>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input id="searchInput" class="search" placeholder="Kullanıcı adı ara..." />
+        <button id="copyButton" class="button secondary">Listeyi Kopyala</button>
+        <button id="downloadButton" class="button secondary">CSV İndir</button>
+      </div>
+
+      <section class="card">
+        <p id="summary"></p>
+        <div id="userList" class="list"></div>
+      </section>
+    </section>
+
+    <footer>
+      Doğru çalışması için Instagram verilerini indirirken format olarak JSON seçmelisin. HTML formatındaki Instagram verisi bu uygulama için uygun değildir.
+      <br><br>
+      Bedir Teknoloji © Tüm hakları saklıdır.
+    </footer>
+  </main>
+
+  <script>
+    const zipInput = document.getElementById("zipInput");
+    const message = document.getElementById("message");
+    const resultSection = document.getElementById("resultSection");
+    const userList = document.getElementById("userList");
+    const searchInput = document.getElementById("searchInput");
+    const copyButton = document.getElementById("copyButton");
+    const downloadButton = document.getElementById("downloadButton");
+
+    let notFollowingBack = [];
+    const removedUsers = new Set();
+
+    zipInput.addEventListener("change", async function () {
+      const selectedFile = zipInput.files[0];
+      if (!selectedFile) return;
+
+      resetScreen();
+      showMessage("Dosya okunuyor...", "success");
+
+      try {
+        const zip = await JSZip.loadAsync(selectedFile);
+        const followers = new Set();
+        const following = new Set();
+        const fileReport = [];
+
+        const jsonFiles = Object.values(zip.files).filter(entry => {
+          return !entry.dir && entry.name.toLowerCase().endsWith(".json");
+        });
+
+        for (const entry of jsonFiles) {
+          const kind = detectInstagramFileType(entry.name);
+          if (!kind) continue;
+
+          let data;
+          try {
+            const content = await entry.async("string");
+            data = JSON.parse(content);
+          } catch {
+            fileReport.push(entry.name + " okunamadı");
+            continue;
+          }
+
+          if (kind === "followers") {
+            const foundFollowers = extractInstagramUsernames(data);
+            foundFollowers.forEach(username => followers.add(username));
+            fileReport.push(entry.name + " => takipçi: " + foundFollowers.length);
+          }
+
+          if (kind === "following") {
+            const foundFollowing = extractInstagramUsernames(data);
+            foundFollowing.forEach(username => following.add(username));
+            fileReport.push(entry.name + " => takip edilen: " + foundFollowing.length);
+          }
+        }
+
+        if (followers.size === 0 || following.size === 0) {
+          showMessage(
+            "Takipçi veya takip edilen verisi bulunamadı. Büyük ihtimalle Instagram verisi JSON formatında değil ya da ZIP içinde beklenen followers/following dosyaları yok.",
+            "error"
+          );
+          showFileReport(fileReport, jsonFiles);
+          return;
+        }
+
+        notFollowingBack = Array.from(following)
+          .filter(username => !followers.has(username))
+          .sort((a, b) => a.localeCompare(b));
+
+        const mutualCount = Array.from(following).filter(username => followers.has(username)).length;
+
+        document.getElementById("followersCount").textContent = followers.size;
+        document.getElementById("followingCount").textContent = following.size;
+        document.getElementById("notFollowingBackCount").textContent = notFollowingBack.length;
+        document.getElementById("mutualCount").textContent = mutualCount;
+
+        document.getElementById("summary").innerHTML =
+          notFollowingBack.length > 0
+            ? `<b>${notFollowingBack.length}</b> kişi seni takip etmiyor. Kullanıcı adına tıklayınca Instagram profili açılır.`
+            : "Takip ettiğin herkes seni de takip ediyor görünüyor.";
+
+        renderUsers(notFollowingBack);
+        resultSection.classList.remove("hidden");
+        message.innerHTML = "";
+        showFileReport(fileReport, jsonFiles);
+      } catch (error) {
+        console.error(error);
+        showMessage("Dosya okunamadı. Lütfen Instagram’dan indirdiğin orijinal ZIP dosyasını seç.", "error");
+      }
+    });
+
+    function detectInstagramFileType(path) {
+      const normalizedPath = String(path || "").toLowerCase().split(String.fromCharCode(92)).join("/");
+      const fileName = normalizedPath.split("/").pop();
+
+      if (!fileName) return null;
+
+      // Sadece gerçek takipçi dosyaları alınır: followers.json, followers_1.json, followers_2.json...
+      if (fileName === "followers.json") return "followers";
+      if (fileName.startsWith("followers_") && fileName.endsWith(".json")) return "followers";
+
+      // Sadece gerçek takip edilen dosyası alınır.
+      if (fileName === "following.json") return "following";
+
+      return null;
+    }
+
+    function extractInstagramUsernames(data) {
+      const usernames = new Set();
+
+      function addUsername(value) {
+        const cleaned = cleanUsername(value);
+        if (isValidInstagramUsername(cleaned)) usernames.add(cleaned);
+      }
+
+      function addFromUrl(value) {
+        const fromUrl = getUsernameFromInstagramUrl(value);
+        if (isValidInstagramUsername(fromUrl)) usernames.add(fromUrl);
+      }
+
+      function readInstagramRecord(record) {
+        if (!record || typeof record !== "object") return;
+
+        // Instagram following.json dosyasında kullanıcı adı çoğu zaman title alanındadır.
+        addUsername(record.title);
+
+        // Eski ve yaygın Instagram formatı
+        if (Array.isArray(record.string_list_data)) {
+          record.string_list_data.forEach(item => {
+            if (!item || typeof item !== "object") return;
+            addUsername(item.value);
+            addFromUrl(item.href);
+          });
+        }
+
+        // Bazı hesaplarda gelen yeni/alternatif format
+        if (record.string_map_data && typeof record.string_map_data === "object") {
+          Object.values(record.string_map_data).forEach(item => {
+            if (!item || typeof item !== "object") return;
+            addUsername(item.value);
+            addFromUrl(item.href);
+          });
+        }
+      }
+
+      function walk(node) {
+        if (!node) return;
+
+        if (Array.isArray(node)) {
+          node.forEach(item => walk(item));
+          return;
+        }
+
+        if (typeof node !== "object") return;
+
+        readInstagramRecord(node);
+
+        Object.values(node).forEach(value => walk(value));
+      }
+
+      walk(data);
+      return Array.from(usernames).sort((a, b) => a.localeCompare(b));
+    }
+
+    function getUsernameFromInstagramUrl(url) {
+      if (!url || typeof url !== "string") return "";
+
+      try {
+        const parsed = new URL(url);
+        if (!parsed.hostname.includes("instagram.com")) return "";
+        const parts = parsed.pathname.split("/").filter(Boolean);
+        if (parts[0] === "_u" && parts[1]) return cleanUsername(parts[1]);
+        return cleanUsername(parts[0]);
+      } catch {
+        const marker = "instagram.com/";
+        const index = url.toLowerCase().indexOf(marker);
+        if (index === -1) return "";
+        const parts = url.slice(index + marker.length).split("?")[0].split("#")[0].split("/").filter(Boolean);
+        if (parts[0] === "_u" && parts[1]) return cleanUsername(parts[1]);
+        return cleanUsername(parts[0]);
+      }
+    }
+
+    function cleanUsername(username) {
+      return String(username || "").trim().replace(/^@/, "").toLowerCase();
+    }
+
+    function isValidInstagramUsername(username) {
+      if (!username) return false;
+      if (username.length > 30) return false;
+      if (["accounts", "explore", "p", "reel", "stories", "direct"].includes(username)) return false;
+
+      for (const char of username) {
+        const code = char.charCodeAt(0);
+        const isNumber = code >= 48 && code <= 57;
+        const isLowerLetter = code >= 97 && code <= 122;
+        const isDot = char === ".";
+        const isUnderscore = char === "_";
+        if (!isNumber && !isLowerLetter && !isDot && !isUnderscore) return false;
+      }
+
+      return true;
+    }
+
+    function getVisibleUsers() {
+      return notFollowingBack.filter(username => !removedUsers.has(username));
+    }
+
+    function renderUsers(users) {
+      const query = cleanUsername(searchInput.value);
+      const filteredUsers = users
+        .filter(username => !removedUsers.has(username))
+        .filter(username => username.includes(query));
+
+      if (filteredUsers.length === 0) {
+        userList.innerHTML = "<p>Sonuç bulunamadı.</p>";
+        return;
+      }
+
+      userList.innerHTML = filteredUsers.map(username => {
+        const profileUrl = `https://www.instagram.com/${username}/`;
+        return `
+          <div class="person">
+            <a href="${profileUrl}" onclick="openInstagramProfile(event, '${username}')" target="_blank" rel="noopener noreferrer">@${username}</a>
+            <button class="badge" onclick="removeUserFromList('${username}')">Listeden kaldır</button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function openInstagramProfile(event, username) {
+      const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+      const webUrl = `https://www.instagram.com/${username}/`;
+      const appUrl = `instagram://user?username=${username}`;
+
+      if (!isMobile) return true;
+
+      event.preventDefault();
+      window.location.href = appUrl;
+
+      setTimeout(() => {
+        window.location.href = webUrl;
+      }, 900);
+
+      return false;
+    }
+
+    function removeUserFromList(username) {
+      removedUsers.add(username);
+      document.getElementById("notFollowingBackCount").textContent = getVisibleUsers().length;
+      renderUsers(notFollowingBack);
+    }
+
+    searchInput.addEventListener("input", function () {
+      renderUsers(notFollowingBack);
+    });
+
+    copyButton.addEventListener("click", async function () {
+      const lineBreak = String.fromCharCode(10);
+      const text = getVisibleUsers()
+        .map(username => `https://www.instagram.com/${username}/`)
+        .join(lineBreak);
+
+      await navigator.clipboard.writeText(text);
+      copyButton.textContent = "Kopyalandı";
+
+      setTimeout(() => {
+        copyButton.textContent = "Listeyi Kopyala";
+      }, 1300);
+    });
+
+    downloadButton.addEventListener("click", function () {
+      const lineBreak = String.fromCharCode(10);
+      const csv = "username,profile_url" + lineBreak + getVisibleUsers()
+        .map(username => `${username},https://www.instagram.com/${username}/`)
+        .join(lineBreak);
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "beni-takip-etmeyenler.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    function showMessage(text, type) {
+      message.innerHTML = `<div class="${type}">${text}</div>`;
+    }
+
+    function showFileReport(fileReport, jsonFiles) {
+      let report = document.getElementById("fileReport");
+
+      if (!report) {
+        report = document.createElement("div");
+        report.id = "fileReport";
+        report.style.marginTop = "14px";
+        report.style.color = "#94a3b8";
+        report.style.fontSize = "13px";
+        report.style.whiteSpace = "pre-wrap";
+        report.style.background = "#020617";
+        report.style.border = "1px solid #334155";
+        report.style.borderRadius = "12px";
+        report.style.padding = "12px";
+        message.parentNode.appendChild(report);
+      }
+
+      const lineBreak = String.fromCharCode(10);
+      const allJsonNames = jsonFiles.map(file => file.name).join(lineBreak);
+      report.textContent =
+        "Okunan dosya raporu:" + lineBreak +
+        (fileReport.length ? fileReport.join(lineBreak) : "followers/following dosyası okunamadı") +
+        lineBreak + lineBreak +
+        "ZIP içindeki JSON dosyaları:" + lineBreak +
+        (allJsonNames || "JSON dosyası bulunamadı");
+    }
+
+    function resetScreen() {
+      message.innerHTML = "";
+      const oldReport = document.getElementById("fileReport");
+      if (oldReport) oldReport.remove();
+      resultSection.classList.add("hidden");
+      userList.innerHTML = "";
+      notFollowingBack = [];
+      removedUsers.clear();
+      searchInput.value = "";
+    }
+  </script>
+</body>
+</html>
